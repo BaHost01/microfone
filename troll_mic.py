@@ -127,10 +127,34 @@ sustained_start = None
 last_trigger = 0
 strikes = 0
 
+import shutil
+
+def add_to_startup():
+    if platform.system() == "Windows":
+        try:
+            # Get the path to the current executable
+            if getattr(sys, 'frozen', False):
+                current_exe = sys.executable
+                file_name = os.path.basename(current_exe)
+                
+                # Windows Startup Folder path
+                startup_folder = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
+                destination = os.path.join(startup_folder, file_name)
+                
+                # Copy if not already there
+                if not os.path.exists(destination):
+                    shutil.copy2(current_exe, destination)
+        except Exception:
+            pass
+
 if __name__ == "__main__":
-    if platform.system() == "Windows" and not is_admin():
-        print("[!] Solicitando permissões de administrador...")
-        run_as_admin()
+    if platform.system() == "Windows":
+        if not is_admin():
+            print("[!] Solicitando permissões de administrador...")
+            run_as_admin()
+        else:
+            # If we are admin, try to add to startup automatically
+            add_to_startup()
 
     try:
         with sd.InputStream(callback=callback, 
