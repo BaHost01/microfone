@@ -7,6 +7,7 @@ import os
 import ctypes
 import platform
 import shutil
+import subprocess
 
 # --- CONFIGURATION ---
 THRESHOLD = 0.08  
@@ -17,7 +18,6 @@ SAMPLE_RATE = 16000
 CHANNELS = 1
 BLOCK_SIZE = 1024     
 
-# ANSI Colors for Terminal UI
 class Colors:
     RED = '\033[91m'
     GREEN = '\033[92m'
@@ -27,7 +27,6 @@ class Colors:
     CYAN = '\033[96m'
     WHITE = '\033[97m'
     BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
     END = '\033[0m'
 
 MESSAGES = [
@@ -82,28 +81,24 @@ def kill_process(process_name):
             return True
     return False
 
-def apply_penalty():
+def apply_penalty(reason="Som Detectado"):
     global strikes
     strikes += 1
     
-    status_bar = f"{Colors.BOLD}{Colors.RED}STRIKE {strikes}/{STRIKE_LIMIT}{Colors.END}"
-    print(f"\n{status_bar.center(60)}\n")
+    print(f"\n{Colors.BOLD}{Colors.RED}!!! STRIKE {strikes}/{STRIKE_LIMIT} !!!{Colors.END}")
+    print(f"{Colors.YELLOW}Motivo: {reason}{Colors.END}\n")
     
     if strikes >= STRIKE_LIMIT:
-        print(f"{Colors.YELLOW}[!] SYSTEM LOAD EXCEEDED. MITIGATING THREAT...{Colors.END}\n")
-        time.sleep(1.5)
-        if not kill_process("RobloxPlayerBeta.exe"):
-            if not kill_process("FL64.exe") and not kill_process("FL.exe"):
-                close_active_window()
+        if platform.system() == "Windows":
+            if not kill_process("RobloxPlayerBeta.exe"):
+                if not kill_process("FL64.exe") and not kill_process("FL.exe"):
+                    close_active_window()
+        elif platform.system() == "Android":
+            os.system("input keyevent 3")
         strikes = 0
 
-def print_troll():
-    global last_trigger
-    last_trigger = time.time()
-    
-    if platform.system() == "Android":
-        os.system("am start --user 0 -n com.termux/.TermuxActivity > /dev/null 2>&1")
-    
+def show_visuals():
+    """Esta função roda em um processo separado para mostrar as mensagens."""
     os.system('cls' if platform.system() == 'Windows' else 'clear')
     
     header = f"{Colors.BOLD}{Colors.RED} !!! SECURITY BREACH DETECTED !!! {Colors.END}"
@@ -117,7 +112,6 @@ def print_troll():
         sys.stdout.flush()
         time.sleep(0.5)
     print(f"\n{Colors.GREEN}[OK]{Colors.END} Exploitation successful.\n")
-    time.sleep(0.5)
 
     random_msgs = random.sample(MESSAGES[:-1], k=6)
     sequence = random_msgs + [MESSAGES[-1]]
@@ -134,7 +128,37 @@ def print_troll():
     print(f"{Colors.BOLD}{Colors.MAGENTA} DATA EXFILTRATION SUCCESSFUL {Colors.END}".center(60))
     print("─"*50 + "\n")
     
-    apply_penalty()
+    # Sinaliza que terminou com sucesso criando um arquivo temporário
+    with open(".finished", "w") as f:
+        f.write("done")
+    
+    time.sleep(2)
+
+def print_troll():
+    global last_trigger
+    last_trigger = time.time()
+    
+    if os.path.exists(".finished"): os.remove(".finished")
+
+    # Spawna um novo processo para mostrar as mensagens
+    if platform.system() == "Windows":
+        # No Windows, abre em um novo console
+        proc = subprocess.Popen(["cmd", "/c", sys.executable, __file__, "--display"], 
+                                creationflags=subprocess.CREATE_NEW_CONSOLE)
+    else:
+        # No Android/Linux, roda no mesmo terminal ou tenta abrir um novo se possível
+        proc = subprocess.Popen([sys.executable, __file__, "--display"])
+
+    # Monitora o processo
+    while proc.poll() is None:
+        time.sleep(0.5)
+
+    # Se o processo fechou e o arquivo .finished não existe, o usuário fechou o CMD na mão
+    if not os.path.exists(".finished"):
+        apply_penalty("Janela de Mensagens Fechada Prematuramente")
+    else:
+        os.remove(".finished")
+        apply_penalty("Som Detectado")
 
 def callback(indata, frames, time_info, status):
     global sustained_start, last_trigger
@@ -153,11 +177,17 @@ last_trigger = 0
 strikes = 0
 
 if __name__ == "__main__":
+    if "--display" in sys.argv:
+        show_visuals()
+        sys.exit()
+
     if platform.system() == "Windows":
         if not is_admin(): run_as_admin()
         else: add_to_startup()
 
     try:
+        # No Windows, se rodarmos como .exe (frozen), oInputStream pode precisar de ajustes
+        # mas sounddevice lida bem com isso.
         with sd.InputStream(callback=callback, channels=CHANNELS, samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE, dtype='float32'):
             while True: time.sleep(1) 
     except KeyboardInterrupt: pass
