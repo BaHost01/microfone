@@ -25,10 +25,10 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --noconsole --name "MicTroll" troll_mic.py
+        pyinstaller --onefile --noconsole --name "Ilove" --icon "icon.ico" troll_mic.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: MicTroll-Windows
-        path: dist/MicTroll.exe
+        name: Ilove-Windows
+        path: dist/Ilove.exe

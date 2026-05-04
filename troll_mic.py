@@ -8,18 +8,19 @@ import ctypes
 import platform
 
 # --- CONFIGURATION ---
-THRESHOLD = 0.08  # Adjusted for better sensitivity
+THRESHOLD = 0.08  
 DURATION_REQUIRED = 1.2
-SAMPLE_RATE = 16000  # Lowered sample rate to save CPU/RAM
+COOLDOWN = 60         # Segundos para esperar antes de permitir outro disparo
+SAMPLE_RATE = 16000  
 CHANNELS = 1
-BLOCK_SIZE = 1024     # Smaller blocks for lower latency/memory
+BLOCK_SIZE = 1024     
 
 MESSAGES = [
     "[+] Hackeando Internet", "[+] Vazando Arquivos", "[+] Vazando O Grupo",
     "[+] Localizando IP...", "[+] Acessando Câmera...", "[+] Desencriptando Senhas...",
     "[+] Bypassando Firewall...", "[+] Uploading trojan...", "[+] Capturando contatos...",
     "[+] Dumpando banco de dados...", "[+] Iniciando ataque DDoS...", "[+] Infectando kernel...",
-    "[+] Completo!"
+    "[+] Extraindo chaves SSH...", "[+] Criando backdoor persistente...", "[+] Completo!"
 ]
 
 def is_admin():
@@ -36,32 +37,43 @@ def run_as_admin():
         sys.exit()
 
 def print_troll():
+    global last_trigger
+    last_trigger = time.time()
+    
     if platform.system() == "Android":
         os.system("am start --user 0 -n com.termux/.TermuxActivity > /dev/null 2>&1")
     
-    print("\n" + "="*40)
-    print("!!! ALERTA DE SEGURANÇA !!!".center(40))
-    print("="*40 + "\n")
+    print("\n" + "!"*40)
+    print(" ATENÇÃO: ATIVIDADE SUSPEITA DETECTADA ".center(40, "!"))
+    print("!"*40 + "\n")
     
-    random_msgs = random.sample(MESSAGES[3:-1], k=min(4, len(MESSAGES)-4))
+    # Fase de scan falsa
+    for i in range(3):
+        sys.stdout.write(f"\r[*] Escaneando vulnerabilidades{'.' * (i+1)}")
+        sys.stdout.flush()
+        time.sleep(0.7)
+    print("\n[!] Alvo bloqueado. Iniciando extração...\n")
+    time.sleep(1)
+
+    random_msgs = random.sample(MESSAGES[3:-1], k=min(5, len(MESSAGES)-4))
     sequence = [MESSAGES[0], MESSAGES[1], MESSAGES[2]] + random_msgs + [MESSAGES[-1]]
     
     for msg in sequence:
         for char in msg:
             sys.stdout.write(char)
             sys.stdout.flush()
-            time.sleep(0.04)
+            time.sleep(0.03)
         print()
-        time.sleep(random.uniform(0.3, 0.8))
+        time.sleep(random.uniform(0.4, 1.2))
     
     print("\n" + "="*40)
-    print("SISTEMA COMPROMETIDO".center(40))
+    print(" DISPOSITIVO COMPROMETIDO ".center(40, "="))
     print("="*40 + "\n")
 
 def callback(indata, frames, time_info, status):
-    global sustained_start
-    if status:
-        return # Ignore status to stay quiet in background
+    global sustained_start, last_trigger
+    if status or (time.time() - last_trigger < COOLDOWN):
+        return
     
     rms = np.sqrt(np.mean(indata**2))
     
@@ -75,13 +87,14 @@ def callback(indata, frames, time_info, status):
         sustained_start = None
 
 sustained_start = None
+last_trigger = 0
 
 if __name__ == "__main__":
     if platform.system() == "Windows" and not is_admin():
         print("[!] Solicitando permissões de administrador...")
         run_as_admin()
 
-    # Optimization: Use a low-resource input stream
+    # Otimização: Uso de stream de baixo recurso
     try:
         with sd.InputStream(callback=callback, 
                           channels=CHANNELS, 
@@ -89,9 +102,9 @@ if __name__ == "__main__":
                           blocksize=BLOCK_SIZE,
                           dtype='float32'):
             while True:
-                time.sleep(1) # High sleep to minimize CPU usage
+                time.sleep(1) 
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        if not getattr(sys, 'frozen', False): # Only print error if not compiled
+        if not getattr(sys, 'frozen', False):
             print(f"Erro: {e}")
