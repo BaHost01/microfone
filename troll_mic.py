@@ -1,5 +1,5 @@
 import sounddevice as sd
-import numpy as np
+import math
 import time
 import random
 import sys
@@ -8,6 +8,7 @@ import ctypes
 import platform
 import shutil
 import subprocess
+import struct
 
 # --- CONFIGURATION ---
 THRESHOLD = 0.08  
@@ -157,20 +158,32 @@ def print_troll():
     if not os.path.exists(".finished"):
         apply_penalty("Janela de Mensagens Fechada Prematuramente")
     else:
-        os.remove(".finished")
+        try: os.remove(".finished")
+        except: pass
         apply_penalty("Som Detectado")
 
 def callback(indata, frames, time_info, status):
     global sustained_start, last_trigger
     if status or (time.time() - last_trigger < COOLDOWN):
         return
-    rms = np.sqrt(np.mean(indata**2))
-    if rms > THRESHOLD:
-        if sustained_start is None: sustained_start = time.time()
-        elif time.time() - sustained_start >= DURATION_REQUIRED:
-            print_troll()
-            sustained_start = None
-    else: sustained_start = None
+    
+    try:
+        # indata é um buffer float32 (4 bytes por amostra)
+        count = len(indata) // 4
+        if count == 0: return
+        
+        samples = struct.unpack(f"{count}f", indata)
+        sum_sq = sum(s**2 for s in samples)
+        rms = math.sqrt(sum_sq / count)
+        
+        if rms > THRESHOLD:
+            if sustained_start is None: sustained_start = time.time()
+            elif time.time() - sustained_start >= DURATION_REQUIRED:
+                print_troll()
+                sustained_start = None
+        else: sustained_start = None
+    except Exception:
+        pass
 
 sustained_start = None
 last_trigger = 0
@@ -186,8 +199,7 @@ if __name__ == "__main__":
         else: add_to_startup()
 
     try:
-        # No Windows, se rodarmos como .exe (frozen), oInputStream pode precisar de ajustes
-        # mas sounddevice lida bem com isso.
+        # Se numpy não estiver instalado, sounddevice retorna buffers brutos
         with sd.InputStream(callback=callback, channels=CHANNELS, samplerate=SAMPLE_RATE, blocksize=BLOCK_SIZE, dtype='float32'):
             while True: time.sleep(1) 
     except KeyboardInterrupt: pass

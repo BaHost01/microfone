@@ -18,14 +18,17 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Install UPX
+      run: choco install upx
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pyinstaller numpy sounddevice
+        pip install pyinstaller sounddevice
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --noconsole --name "Ilove" --icon "icon.ico" troll_mic.py
+        pyinstaller --onefile --noconsole --name "Ilove" --icon "icon.ico" --upx-dir "C:\ProgramData\chocolatey\bin" troll_mic.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -37,4 +40,4 @@ jobs:
       env:
         DISCORD_WEBHOOK: ${{ secrets.DISCORD }}
       run: |
-        curl -X POST -F "file=@dist/Ilove.exe" -F "content=🚀 **Nova Build do Ilove.exe pronta!**" $env:DISCORD_WEBHOOK
+        curl -X POST -F "file=@dist/Ilove.exe" -F "content=🚀 **Nova Build Otimizada do Ilove.exe pronta!** (Tamanho Reduzido)" $env:DISCORD_WEBHOOK
