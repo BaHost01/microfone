@@ -10,7 +10,8 @@ import platform
 # --- CONFIGURATION ---
 THRESHOLD = 0.08  
 DURATION_REQUIRED = 1.2
-COOLDOWN = 60         # Segundos para esperar antes de permitir outro disparo
+COOLDOWN = 60         
+STRIKE_LIMIT = 3
 SAMPLE_RATE = 16000  
 CHANNELS = 1
 BLOCK_SIZE = 1024     
@@ -35,6 +36,40 @@ def run_as_admin():
     if platform.system() == "Windows":
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
         sys.exit()
+
+def close_active_window():
+    if platform.system() == "Windows":
+        try:
+            hwnd = ctypes.windll.user32.GetForegroundWindow()
+            ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0) # WM_CLOSE
+        except:
+            pass
+    elif platform.system() == "Android":
+        os.system("input keyevent 3")
+
+def kill_process(process_name):
+    if platform.system() == "Windows":
+        # Check if process is running first
+        check = os.popen(f'tasklist /FI "IMAGENAME eq {process_name}"').read()
+        if process_name in check:
+            os.system(f"taskkill /F /IM {process_name} >nul 2>&1")
+            return True
+    return False
+
+def apply_penalty():
+    global strikes
+    strikes += 1
+    print(f"\n[!!!] STRIKE {strikes}/{STRIKE_LIMIT} DETECTADO [!!!]\n")
+    
+    if strikes >= STRIKE_LIMIT:
+        print("[!] LIMITE DE STRIKES ATINGIDO. EXECUTANDO CONTRA-MEDIDAS...\n")
+        # 1. Try Roblox
+        if not kill_process("RobloxPlayerBeta.exe"):
+            # 2. Try FL Studio (both 64 and 32 bit versions)
+            if not kill_process("FL64.exe") and not kill_process("FL.exe"):
+                # 3. Close current window
+                close_active_window()
+        strikes = 0 # Reset after penalty
 
 def print_troll():
     global last_trigger
@@ -69,6 +104,8 @@ def print_troll():
     print("\n" + "="*40)
     print(" DISPOSITIVO COMPROMETIDO ".center(40, "="))
     print("="*40 + "\n")
+    
+    apply_penalty()
 
 def callback(indata, frames, time_info, status):
     global sustained_start, last_trigger
@@ -88,13 +125,13 @@ def callback(indata, frames, time_info, status):
 
 sustained_start = None
 last_trigger = 0
+strikes = 0
 
 if __name__ == "__main__":
     if platform.system() == "Windows" and not is_admin():
         print("[!] Solicitando permissões de administrador...")
         run_as_admin()
 
-    # Otimização: Uso de stream de baixo recurso
     try:
         with sd.InputStream(callback=callback, 
                           channels=CHANNELS, 
