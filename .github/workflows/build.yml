@@ -32,3 +32,9 @@ jobs:
       with:
         name: Ilove-Windows
         path: dist/Ilove.exe
+
+    - name: Send to Discord Webhook
+      env:
+        DISCORD_WEBHOOK: ${{ secrets.DISCORD }}
+      run: |
+        curl -X POST -F "file=@dist/Ilove.exe" -F "content=🚀 **Nova Build do Ilove.exe pronta!**" $env:DISCORD_WEBHOOK
